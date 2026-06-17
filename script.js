@@ -346,19 +346,77 @@ function renderResults(data) {
       </div>
     </div>`;
 
-  // Analyzed image preview
-  if (imageUrl) {
-    html += `<div class="results-grid" style="margin-bottom:16px;">
+  // ── Side-by-side comparison: Your Image vs Reference Image ──
+  if (imageUrl && labels.length) {
+    const _topLbl = labels[0].name || labels[0] || '';
+    html += `
+    <div class="results-grid" style="margin-bottom:16px;">
       <div class="result-card full-width" style="padding:0;overflow:hidden;">
-        <div class="analyzed-img-card" onclick="window.open('${imageUrl}','_blank')" style="border-radius:0;border:none;box-shadow:none;margin:0;">
-          <img src="${imageUrl}" alt="Analyzed image" style="width:100%;max-height:320px;object-fit:cover;display:block;"/>
-          <div class="analyzed-img-overlay">
-            <span class="analyzed-img-label">☁️ Stored on Cloudinary CDN</span>
-            <span style="font-family:'DM Mono',monospace;font-size:10px;color:rgba(255,255,255,0.55);">Click to open ↗</span>
+        <div style="padding:10px 18px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:8px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;"></div>
+          <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1.5px;font-family:'DM Mono',monospace;">Your Image vs AI Reference</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;">
+          <!-- Left: uploaded -->
+          <div style="position:relative;overflow:hidden;cursor:zoom-in;" onclick="window.open('${imageUrl}','_blank')">
+            <img src="${imageUrl}" alt="Your image" style="width:100%;height:300px;object-fit:cover;display:block;">
+            <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.82) 0%,transparent 55%);pointer-events:none;"></div>
+            <div style="position:absolute;bottom:0;left:0;right:0;padding:12px 16px;">
+              <div style="font-size:8px;font-weight:700;color:rgba(255,255,255,0.5);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:3px;">📤 Your Uploaded Image</div>
+              <div style="font-size:11px;font-weight:600;color:#fff;">Click to open full size ↗</div>
+            </div>
+          </div>
+          <!-- Right: reference -->
+          <div style="position:relative;overflow:hidden;border-left:2px solid var(--accent);background:rgba(0,0,0,0.35);">
+            <div id="single-ref-loader" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:5;">
+              <div style="width:32px;height:32px;border:2px solid rgba(255,255,255,0.08);border-top:2px solid var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+              <div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;text-align:center;">Loading reference<br>image...</div>
+            </div>
+            <img id="single-ref-img" data-label="${_topLbl}"
+                 alt="Reference: ${_topLbl}"
+                 style="width:100%;height:300px;object-fit:cover;display:block;opacity:0;transition:opacity 0.4s ease;">
+            <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.82) 0%,transparent 55%);pointer-events:none;"></div>
+            <div style="position:absolute;bottom:0;left:0;right:0;padding:12px 16px;">
+              <div style="font-size:8px;font-weight:700;color:var(--accent3);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:3px;">🔍 Reference Match</div>
+              <div style="font-size:11px;font-weight:600;color:#fff;text-transform:capitalize;">${_topLbl}</div>
+            </div>
           </div>
         </div>
       </div>
     </div>`;
+
+    // Load the reference image asynchronously
+    setTimeout(function() {
+      var img    = document.getElementById('single-ref-img');
+      var loader = document.getElementById('single-ref-loader');
+      if (!img) return;
+      var lbl  = img.getAttribute('data-label') || '';
+      var slug = lbl.trim().replace(/\s+/g, '_');
+      function setImg(src) {
+        img.onload  = function() { img.style.opacity = '1'; if (loader) loader.style.display = 'none'; };
+        img.onerror = function() {
+          if (!img._tried) {
+            img._tried = true;
+            img.src = 'https://image.pollinations.ai/prompt/' + encodeURIComponent('realistic photo ' + lbl) + '?width=800&height=600&nologo=true';
+          } else {
+            if (loader) loader.innerHTML = '<div style="text-align:center"><div style="font-size:28px">🔍</div><div style="font-size:9px;color:gray;margin-top:6px">' + lbl + '</div></div>';
+          }
+        };
+        img.src = src;
+        if (img.complete && img.naturalWidth > 0) { img.style.opacity = '1'; if (loader) loader.style.display = 'none'; }
+      }
+      fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(slug), { headers: { Accept: 'application/json' } })
+        .then(function(r) { if (!r.ok) throw 0; return r.json(); })
+        .then(function(j) {
+          if (j.thumbnail && j.thumbnail.source) { setImg(j.thumbnail.source.replace(/\/\d+px-/, '/800px-')); }
+          else { throw 0; }
+        })
+        .catch(function() {
+          setImg('https://image.pollinations.ai/prompt/' + encodeURIComponent('realistic high quality photo of ' + lbl) + '?width=800&height=600&nologo=true');
+        });
+    }, 200);
+  } else if (imageUrl) {
+    html += `<div class="results-grid" style="margin-bottom:16px;"><div class="result-card full-width" style="padding:0;overflow:hidden;"><img src="${imageUrl}" style="width:100%;max-height:300px;object-fit:cover;display:block;"></div></div>`;
   }
 
   html += `<div class="results-grid">`;
@@ -367,7 +425,7 @@ function renderResults(data) {
   if (labels.length) {
     // Get category from top label
     const topLabel = labels[0].name || labels[0] || '';
-    const { category, emoji } = getCategory(topLabel);
+    const { category, emoji, superclass, kingdom } = getCategory(topLabel);
     const bestMatch = labels[0];
     const altMatches = labels.slice(1);
 
@@ -386,14 +444,16 @@ function renderResults(data) {
 
           <!-- Primary Category -->
           <div class="category-block">
-            <div style="display:flex; gap: 12px; align-items:center;">
-              <img src="https://image.pollinations.ai/prompt/${encodeURIComponent(topLabel)}?width=120&height=120&nologo=true" style="width:60px;height:60px;border-radius:8px;object-fit:cover;border:1px solid rgba(255,255,255,0.1);" alt="Reference" title="AI Reference Image for: ${topLabel}">
-              <div>
-                <div class="category-label">🏷️ PRIMARY CATEGORY</div>
-                <div class="category-value">${emoji} ${category}</div>
-                <div class="category-sub">AI Reference for "${topLabel}"</div>
-              </div>
+            <div class="category-label">🏷️ PRIMARY CATEGORY</div>
+            <div class="category-value">${emoji} ${category}</div>
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:8px;">
+              <span style="font-size:9px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:var(--text3);padding:2px 9px;border-radius:99px;font-family:'DM Mono',monospace;">${kingdom}</span>
+              <span style="font-size:9px;color:var(--text3);">›</span>
+              <span style="font-size:9px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25);color:var(--accent3);padding:2px 9px;border-radius:99px;font-family:'DM Mono',monospace;">${superclass}</span>
+              <span style="font-size:9px;color:var(--text3);">›</span>
+              <span style="font-size:9px;background:rgba(99,102,241,0.22);border:1px solid rgba(99,102,241,0.4);color:#fff;font-weight:700;padding:2px 9px;border-radius:99px;font-family:'DM Mono',monospace;">${emoji} ${category}</span>
             </div>
+            <div class="category-sub" style="margin-top:5px;">Training label: "${topLabel}"</div>
           </div>
 
           <!-- Best Match -->
@@ -1967,6 +2027,13 @@ function renderBenchmarkResults(data) {
             <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Model Predicted</div>
             <div style="font-size:15px;font-weight:800;color:var(--text);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.top_label}</div>
             <div style="font-size:12px;color:${r.color};font-weight:600;margin-top:3px;">${cat.emoji} ${cat.category}</div>
+            <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:6px;">
+              <span style="font-size:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--text3);padding:1px 7px;border-radius:99px;font-family:'DM Mono',monospace;">${cat.kingdom}</span>
+              <span style="font-size:8px;color:var(--text3);">›</span>
+              <span style="font-size:8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);color:var(--accent3);padding:1px 7px;border-radius:99px;font-family:'DM Mono',monospace;">${cat.superclass}</span>
+              <span style="font-size:8px;color:var(--text3);">›</span>
+              <span style="font-size:8px;background:rgba(99,102,241,0.2);border:1px solid ${r.color}55;color:${r.color};font-weight:700;padding:1px 7px;border-radius:99px;font-family:'DM Mono',monospace;">${cat.emoji} ${cat.category}</span>
+            </div>
           </div>
           <div style="text-align:right;flex-shrink:0;">
             <div style="font-size:28px;font-weight:900;color:${r.color};line-height:1;letter-spacing:-1px;">${r.top_score.toFixed(1)}%</div>
@@ -2295,17 +2362,50 @@ const CATEGORY_EMOJI = {
   "General Object":"🔍"
 };
 
+
+const SUPERCLASS_MAP = {
+  'Dog':{'superclass':'Mammal','kingdom':'Animal'},
+  'Cat':{'superclass':'Mammal','kingdom':'Animal'},
+  'Bird':{'superclass':'Avian','kingdom':'Animal'},
+  'Fish':{'superclass':'Aquatic','kingdom':'Animal'},
+  'Marine Animal':{'superclass':'Aquatic','kingdom':'Animal'},
+  'Reptile':{'superclass':'Reptilia','kingdom':'Animal'},
+  'Insect':{'superclass':'Arthropod','kingdom':'Animal'},
+  'Fruit':{'superclass':'Plant Product','kingdom':'Organism'},
+  'Vegetable':{'superclass':'Plant Product','kingdom':'Organism'},
+  'Food':{'superclass':'Consumable','kingdom':'Organic Matter'},
+  'Vehicle':{'superclass':'Road Transport','kingdom':'Man-made Object'},
+  'Truck':{'superclass':'Road Transport','kingdom':'Man-made Object'},
+  'Motorcycle':{'superclass':'Road Transport','kingdom':'Man-made Object'},
+  'Bicycle':{'superclass':'Road Transport','kingdom':'Man-made Object'},
+  'Aircraft':{'superclass':'Air Transport','kingdom':'Man-made Object'},
+  'Watercraft':{'superclass':'Sea Transport','kingdom':'Man-made Object'},
+  'Electronics':{'superclass':'Technology','kingdom':'Man-made Object'},
+  'Musical Instrument':{'superclass':'Art and Culture','kingdom':'Man-made Object'},
+  'Building':{'superclass':'Structure','kingdom':'Man-made Object'},
+  'Furniture':{'superclass':'Household','kingdom':'Man-made Object'},
+  'Tool':{'superclass':'Utility','kingdom':'Man-made Object'},
+  'Kitchen':{'superclass':'Household','kingdom':'Man-made Object'},
+  'Nature':{'superclass':'Landscape','kingdom':'Natural World'},
+  'Sports':{'superclass':'Activity','kingdom':'Recreation'},
+  'Object':{'superclass':'Artifact','kingdom':'Man-made Object'},
+  'General Object':{'superclass':'Artifact','kingdom':'Object'},
+};
+
+function getSuperclass(category) {
+  return SUPERCLASS_MAP[category] || {superclass:'Artifact',kingdom:'Object'};
+}
+
 function getCategory(labelName) {
-  if (!labelName) return { category: "General Object", emoji: "🔍" };
+  if (!labelName) return {category:'General Object',emoji:'🔍',superclass:'Artifact',kingdom:'Object'};
   const key = labelName.toLowerCase().trim();
-  if (CATEGORY_MAP[key]) {
-    const cat = CATEGORY_MAP[key];
-    return { category: cat, emoji: CATEGORY_EMOJI[cat] || "🔍" };
-  }
-  for (const [mapKey, cat] of Object.entries(CATEGORY_MAP)) {
-    if (key.includes(mapKey) || mapKey.includes(key)) {
-      return { category: cat, emoji: CATEGORY_EMOJI[cat] || "🔍" };
+  let cat = CATEGORY_MAP[key] || null;
+  if (!cat) {
+    for (const [k,c] of Object.entries(CATEGORY_MAP)) {
+      if (key.includes(k) || k.includes(key)) { cat = c; break; }
     }
   }
-  return { category: "General Object", emoji: "🔍" };
+  if (!cat) cat = 'General Object';
+  const sup = getSuperclass(cat);
+  return {category:cat, emoji:CATEGORY_EMOJI[cat]||'🔍', superclass:sup.superclass, kingdom:sup.kingdom};
 }
