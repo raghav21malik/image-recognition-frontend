@@ -363,35 +363,89 @@ function renderResults(data) {
 
   html += `<div class="results-grid">`;
 
-  // AI Label ranked bars
+  // AI Classification Results — with Category + Model Spec
   if (labels.length) {
+    // Get category from top label
+    const topLabel = labels[0].name || labels[0] || '';
+    const { category, emoji } = getCategory(topLabel);
+    const bestMatch = labels[0];
+    const altMatches = labels.slice(1);
+
+    // Get model info for used model
+    const usedModel = selectedModel || 'google/vit-base-patch16-224';
+    const mInfo = MODEL_INFO[usedModel] || MODEL_INFO['google/vit-base-patch16-224'];
+
+    // ── Category + Results card ──
     html += `<div class="result-card full-width">
       <div class="result-card-title">🤖 AI Classification Results</div>
-      <div class="ranked-labels">`;
-    const total = labels.length;
-    labels.forEach((l, i) => {
-      // Use real confidence if available, else rank-based fallback
-      const rankWidths = [100, 80, 65, 52, 42];
-      const hasConfidence = l.confidence !== null && l.confidence !== undefined && l.confidence > 0;
-      const barWidth = hasConfidence ? Math.round(l.confidence) : (rankWidths[i] || Math.max(100 - (i * 15), 15));
-      const displayPct = hasConfidence ? l.confidence.toFixed(1) + '%' : '#' + (i+1);
-      const rankColors = [
-        'linear-gradient(90deg,#6366f1,#22d3ee)',
-        'linear-gradient(90deg,#8b5cf6,#6366f1)',
-        'linear-gradient(90deg,#a78bfa,#8b5cf6)',
-        'linear-gradient(90deg,#c4b5fd,#a78bfa)',
-        'linear-gradient(90deg,#ddd6fe,#c4b5fd)',
-      ];
-      const color = rankColors[i] || rankColors[4];
-      html += `<div class="ranked-label-row">
-        <div class="ranked-label-rank" style="min-width:44px;">${displayPct}</div>
-        <div class="ranked-label-name">${l.name||l}</div>
-        <div class="ranked-label-bar-wrap">
-          <div class="ranked-label-bar-fill" style="height:100%;border-radius:99px;background:${color};width:0%;transition:width 1.2s cubic-bezier(0.4,0,0.2,1);" data-w="${barWidth}"></div>
+
+      <div class="classification-layout">
+
+        <!-- Left: Category + Matches -->
+        <div class="classification-main">
+
+          <!-- Primary Category -->
+          <div class="category-block">
+            <div class="category-label">🏷️ PRIMARY CATEGORY</div>
+            <div class="category-value">${emoji} ${category}</div>
+            <div class="category-sub">Ground truth class family from ${mInfo.dataset.split(' ')[0]}</div>
+          </div>
+
+          <!-- Best Match -->
+          <div class="match-block">
+            <div class="match-label">🎯 BEST MATCH</div>
+            <div class="match-row best-match-row">
+              <span class="match-name">${bestMatch.name || bestMatch}</span>
+              ${bestMatch.confidence ? `<span class="match-pct best-pct">${bestMatch.confidence.toFixed(1)}%</span>` : ''}
+            </div>
+            ${bestMatch.confidence ? `<div class="match-bar-wrap"><div class="ranked-label-bar-fill" style="background:linear-gradient(90deg,#6366f1,#22d3ee);width:0%;height:100%;border-radius:99px;transition:width 1.2s;" data-w="${Math.round(bestMatch.confidence)}"></div></div>` : ''}
+          </div>
+
+          <!-- Alternative Matches -->
+          ${altMatches.length ? `<div class="match-block">
+            <div class="match-label">🔄 ALTERNATIVE MATCHES</div>
+            <div class="alt-matches">` +
+              altMatches.map((l, i) => {
+                const hasConf = l.confidence !== null && l.confidence !== undefined && l.confidence > 0;
+                const barW = hasConf ? Math.round(l.confidence) : [80,65,52,42][i] || 30;
+                const rankColors = ['linear-gradient(90deg,#8b5cf6,#6366f1)','linear-gradient(90deg,#a78bfa,#8b5cf6)','linear-gradient(90deg,#c4b5fd,#a78bfa)','linear-gradient(90deg,#ddd6fe,#c4b5fd)'];
+                return `<div class="alt-match-row">
+                  <span class="alt-match-name">${l.name||l}</span>
+                  ${hasConf ? `<span class="alt-match-pct">${l.confidence.toFixed(1)}%</span>` : ''}
+                  <div class="match-bar-wrap" style="flex:1;"><div class="ranked-label-bar-fill" style="background:${rankColors[i]||rankColors[3]};width:0%;height:100%;border-radius:99px;transition:width 1.2s;" data-w="${barW}"></div></div>
+                </div>`;
+              }).join('') +
+            `</div></div>` : ''}
         </div>
-      </div>`;
-    });
-    html += `</div></div>`;
+
+        <!-- Right: Model Spec Card -->
+        <div class="model-spec-card">
+          <div class="model-spec-header">
+            <div class="model-spec-dot" style="background:${mInfo.color}"></div>
+            <div>
+              <div class="model-spec-name">${mInfo.name}</div>
+              <div class="model-spec-arch">${mInfo.architecture}</div>
+            </div>
+          </div>
+          <div class="model-spec-rows">
+            <div class="model-spec-row"><span class="msr-label">Family</span><span class="msr-val">${mInfo.family}</span></div>
+            <div class="model-spec-row"><span class="msr-label">By</span><span class="msr-val">${mInfo.org} (${mInfo.year})</span></div>
+            <div class="model-spec-row"><span class="msr-label">Params</span><span class="msr-val">${mInfo.params}</span></div>
+            <div class="model-spec-row"><span class="msr-label">Trained on</span><span class="msr-val">${mInfo.dataset}</span></div>
+            <div class="model-spec-row"><span class="msr-label">Top-1 Acc</span><span class="msr-val" style="color:var(--success)">${mInfo.top1}</span></div>
+          </div>
+          <div class="model-spec-how">
+            <div class="msr-label" style="margin-bottom:4px;">How it works</div>
+            <div style="font-size:11px;color:var(--text2);line-height:1.6;">${mInfo.how}</div>
+          </div>
+          <div class="model-spec-paper">
+            <div class="msr-label">Paper</div>
+            <div style="font-size:10px;color:var(--accent3);font-style:italic;line-height:1.5;">${mInfo.paper}</div>
+          </div>
+        </div>
+
+      </div>
+    </div>`;
   }
 
   // Objects
@@ -1799,3 +1853,141 @@ window.analyzeImage = async function() {
   }
   _origAnalyzeImage();
 };
+
+// ══════════════════════════════════════
+// MODEL INFO — 5 Different Architectures
+// ══════════════════════════════════════
+const MODEL_INFO = {
+  "google/vit-base-patch16-224": {
+    name: "ViT-Base/16", short: "ViT",
+    architecture: "Vision Transformer", family: "Pure Transformer",
+    org: "Google", year: "2020", params: "86M parameters",
+    dataset: "ImageNet-21k (14M images, 21,000 classes)",
+    top1: "85.8%", color: "#6366f1",
+    paper: "An Image is Worth 16x16 Words",
+    how: "Splits image into 16x16 patches, treats each as a token, applies global self-attention across all patches simultaneously"
+  },
+  "microsoft/resnet-50": {
+    name: "ResNet-50", short: "ResNet",
+    architecture: "Residual CNN", family: "Deep CNN",
+    org: "Microsoft", year: "2015", params: "25M parameters",
+    dataset: "ImageNet-1k (1.2M images, 1,000 classes)",
+    top1: "80.8%", color: "#22d3ee",
+    paper: "Deep Residual Learning for Image Recognition",
+    how: "Uses skip connections so each layer learns residuals. Enables training of very deep networks without vanishing gradients"
+  },
+  "google/mobilenet_v2_1.0_224": {
+    name: "MobileNet-V2", short: "MobileNet",
+    architecture: "Depthwise Separable CNN", family: "Lightweight Mobile CNN",
+    org: "Google", year: "2018", params: "3.4M parameters",
+    dataset: "ImageNet-1k (1.2M images, 1,000 classes)",
+    top1: "71.8%", color: "#34d399",
+    paper: "MobileNetV2: Inverted Residuals and Linear Bottlenecks",
+    how: "Separates spatial and channel convolutions into two steps. 8x fewer parameters than ResNet, designed for mobile devices"
+  },
+  "microsoft/swin-tiny-patch4-window7-224": {
+    name: "Swin-Tiny", short: "Swin",
+    architecture: "Shifted Window Transformer", family: "Hierarchical Transformer",
+    org: "Microsoft", year: "2021", params: "28M parameters",
+    dataset: "ImageNet-1k (1.2M images, 1,000 classes)",
+    top1: "81.3%", color: "#f472b6",
+    paper: "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
+    how: "Applies attention within local windows, then shifts windows each layer for cross-window connections. More efficient than ViT"
+  },
+  "facebook/deit-base-distilled-patch16-224": {
+    name: "DeiT-Base", short: "DeiT",
+    architecture: "Knowledge Distillation Transformer", family: "Distilled Transformer",
+    org: "Meta (Facebook)", year: "2020", params: "86M parameters",
+    dataset: "ImageNet-1k (1.2M images, 1,000 classes)",
+    top1: "83.4%", color: "#fbbf24",
+    paper: "Training Data-Efficient Image Transformers & Distillation through Attention",
+    how: "Transformer trained using knowledge distillation from a CNN teacher. Learns efficiently without large datasets that ViT requires"
+  }
+};
+
+// ══════════════════════════════════════
+// CATEGORY MAP — Ground Truth Taxonomy
+// ══════════════════════════════════════
+const CATEGORY_MAP = {
+  "golden retriever":"Dog","labrador retriever":"Dog","german shepherd":"Dog",
+  "bulldog":"Dog","poodle":"Dog","beagle":"Dog","rottweiler":"Dog",
+  "yorkshire terrier":"Dog","boxer":"Dog","dachshund":"Dog",
+  "siberian husky":"Dog","great dane":"Dog","shih tzu":"Dog",
+  "chihuahua":"Dog","border collie":"Dog","cocker spaniel":"Dog",
+  "dalmatian":"Dog","pomeranian":"Dog","maltese dog":"Dog","whippet":"Dog",
+  "sussex spaniel":"Dog","otterhound":"Dog","clumber spaniel":"Dog",
+  "clumber":"Dog","english setter":"Dog","irish setter":"Dog",
+  "flat-coated retriever":"Dog","curly-coated retriever":"Dog",
+  "tabby":"Cat","persian cat":"Cat","siamese cat":"Cat","egyptian cat":"Cat",
+  "tiger cat":"Cat","lynx":"Cat","cougar":"Cat","cheetah":"Cat",
+  "leopard":"Cat","snow leopard":"Cat","jaguar":"Cat","lion":"Cat","tiger":"Cat",
+  "robin":"Bird","eagle":"Bird","hawk":"Bird","falcon":"Bird","owl":"Bird",
+  "parrot":"Bird","toucan":"Bird","pelican":"Bird","flamingo":"Bird",
+  "peacock":"Bird","ostrich":"Bird","penguin":"Bird","crow":"Bird",
+  "goldfish":"Fish","shark":"Fish","tench":"Fish","salmon":"Fish",
+  "starfish":"Marine Animal","jellyfish":"Marine Animal","octopus":"Marine Animal",
+  "whale":"Marine Animal","dolphin":"Marine Animal","seal":"Marine Animal",
+  "crab":"Marine Animal","lobster":"Marine Animal",
+  "butterfly":"Insect","bee":"Insect","ant":"Insect","dragonfly":"Insect",
+  "ladybug":"Insect","beetle":"Insect","cockroach":"Insect",
+  "apple":"Fruit","banana":"Fruit","orange":"Fruit","strawberry":"Fruit",
+  "pineapple":"Fruit","mango":"Fruit","grape":"Fruit","watermelon":"Fruit",
+  "lemon":"Fruit","cherry":"Fruit","peach":"Fruit","pear":"Fruit",
+  "custard apple":"Fruit","papaya":"Fruit","avocado":"Fruit",
+  "broccoli":"Vegetable","carrot":"Vegetable","corn":"Vegetable",
+  "mushroom":"Vegetable","potato":"Vegetable","tomato":"Vegetable",
+  "cucumber":"Vegetable","onion":"Vegetable","cabbage":"Vegetable",
+  "pizza":"Food","burger":"Food","sandwich":"Food","hotdog":"Food",
+  "hot dog":"Food","sushi":"Food","pasta":"Food","bread":"Food",
+  "cake":"Food","donut":"Food","ice cream":"Food","waffle":"Food",
+  "sports car":"Vehicle","race car":"Vehicle","convertible":"Vehicle",
+  "sedan":"Vehicle","suv":"Vehicle","jeep":"Vehicle","minivan":"Vehicle",
+  "car":"Vehicle","automobile":"Vehicle","landrover":"Vehicle",
+  "beach wagon":"Vehicle","estate car":"Vehicle","station wagon":"Vehicle",
+  "truck":"Truck","semi truck":"Truck","trailer truck":"Truck",
+  "motorcycle":"Motorcycle","motorbike":"Motorcycle",
+  "bicycle":"Bicycle","mountain bike":"Bicycle",
+  "airliner":"Aircraft","fighter jet":"Aircraft","helicopter":"Aircraft",
+  "biplane":"Aircraft","warplane":"Aircraft","space shuttle":"Aircraft",
+  "sailboat":"Watercraft","speedboat":"Watercraft","submarine":"Watercraft",
+  "aircraft carrier":"Watercraft","warship":"Watercraft","canoe":"Watercraft",
+  "pigboat":"Watercraft","sub":"Watercraft","dock":"Watercraft",
+  "laptop":"Electronics","computer":"Electronics","keyboard":"Electronics",
+  "monitor":"Electronics","television":"Electronics","smartphone":"Electronics",
+  "camera":"Electronics","headphones":"Electronics","tablet":"Electronics",
+  "chair":"Furniture","table":"Furniture","sofa":"Furniture","bed":"Furniture",
+  "bookshelf":"Furniture","lamp":"Furniture","cabinet":"Furniture",
+  "church":"Building","castle":"Building","house":"Building",
+  "skyscraper":"Building","tower":"Building","bridge":"Building",
+  "mountain":"Nature","volcano":"Nature","waterfall":"Nature",
+  "beach":"Nature","forest":"Nature","lake":"Nature","river":"Nature",
+  "guitar":"Musical Instrument","piano":"Musical Instrument",
+  "violin":"Musical Instrument","drum":"Musical Instrument",
+  "clock":"Object","book":"Object","pen":"Object","umbrella":"Object",
+  "trophy":"Object","analog clock":"Object","ipod":"Object",
+};
+
+const CATEGORY_EMOJI = {
+  "Dog":"🐶","Cat":"🐱","Bird":"🐦","Fish":"🐟","Marine Animal":"🌊",
+  "Reptile":"🦎","Insect":"🦋","Fruit":"🍎","Vegetable":"🥦","Food":"🍕",
+  "Vehicle":"🚗","Truck":"🚛","Motorcycle":"🏍️","Bicycle":"🚲",
+  "Aircraft":"✈️","Watercraft":"🚢","Electronics":"💻","Furniture":"🪑",
+  "Building":"🏛️","Nature":"🏔️","Sports":"⚽","Clothing":"👕",
+  "Musical Instrument":"🎸","Tool":"🔧","Kitchen":"🍳","Object":"📦",
+  "General Object":"🔍"
+};
+
+function getCategory(labelName) {
+  if (!labelName) return { category: "General Object", emoji: "🔍" };
+  const key = labelName.toLowerCase().trim();
+  if (CATEGORY_MAP[key]) {
+    const cat = CATEGORY_MAP[key];
+    return { category: cat, emoji: CATEGORY_EMOJI[cat] || "🔍" };
+  }
+  for (const [mapKey, cat] of Object.entries(CATEGORY_MAP)) {
+    if (key.includes(mapKey) || mapKey.includes(key)) {
+      return { category: cat, emoji: CATEGORY_EMOJI[cat] || "🔍" };
+    }
+  }
+  return { category: "General Object", emoji: "🔍" };
+}
