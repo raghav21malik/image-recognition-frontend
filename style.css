@@ -2864,3 +2864,147 @@ html {
   .model-pill { min-width: 60px; padding: 6px 8px; }
   .model-pill-name { font-size: 10px; }
 }
+
+/* ══════════════════════════════════════
+   CLASSIFICATION LAYOUT — Category + Model Spec
+══════════════════════════════════════ */
+.classification-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 16px;
+  margin-top: 4px;
+}
+.classification-main { display: flex; flex-direction: column; gap: 14px; }
+
+/* Category block */
+.category-block {
+  background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(34,211,238,0.05));
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 12px; padding: 14px 16px;
+}
+.category-label {
+  font-size: 10px; font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  color: var(--text3); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 6px;
+}
+.category-value {
+  font-size: 22px; font-weight: 800;
+  color: var(--text); letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+.category-sub {
+  font-size: 10px; color: var(--text3);
+  font-family: 'DM Mono', monospace;
+}
+
+/* Match blocks */
+.match-block { display: flex; flex-direction: column; gap: 6px; }
+.match-label {
+  font-size: 10px; font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  color: var(--text3); text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.match-row {
+  display: flex; align-items: center;
+  gap: 10px;
+}
+.best-match-row { margin-bottom: 4px; }
+.match-name {
+  font-size: 15px; font-weight: 700;
+  color: var(--text); flex: 1;
+  text-transform: capitalize;
+}
+.match-pct {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px; font-weight: 700;
+}
+.best-pct { color: var(--accent3); font-size: 15px; }
+.match-bar-wrap {
+  height: 6px; background: rgba(255,255,255,0.05);
+  border-radius: 99px; overflow: hidden;
+  margin-bottom: 2px;
+}
+
+/* Alternative matches */
+.alt-matches { display: flex; flex-direction: column; gap: 8px; }
+.alt-match-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.alt-match-name {
+  font-size: 13px; font-weight: 600;
+  color: var(--text2); width: 160px;
+  flex-shrink: 0; text-transform: capitalize;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.alt-match-pct {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--text3);
+  min-width: 38px; text-align: right;
+}
+
+/* Model Spec Card */
+.model-spec-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 14px; padding: 14px;
+  display: flex; flex-direction: column; gap: 12px;
+  height: fit-content;
+}
+.model-spec-header {
+  display: flex; align-items: center; gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.model-spec-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%; flex-shrink: 0;
+}
+.model-spec-name {
+  font-size: 14px; font-weight: 800;
+  color: var(--text);
+}
+.model-spec-arch {
+  font-size: 10px; font-family: 'DM Mono', monospace;
+  color: var(--text3); margin-top: 1px;
+}
+.model-spec-rows { display: flex; flex-direction: column; gap: 6px; }
+.model-spec-row {
+  display: flex; justify-content: space-between;
+  align-items: center; gap: 8px;
+}
+.msr-label {
+  font-size: 10px; font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  color: var(--text3); text-transform: uppercase;
+  letter-spacing: 0.5px; flex-shrink: 0;
+}
+.msr-val {
+  font-size: 11px; font-weight: 600;
+  color: var(--text2); text-align: right;
+}
+.model-spec-how {
+  padding: 10px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.model-spec-paper {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* Update model selector pills to match new IDs */
+.model-pill[data-model="google/mobilenet_v2_1.0_224"] .model-pill-arch::before { content: ""; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .classification-layout { grid-template-columns: 1fr; }
+  .model-spec-card { order: -1; }
+}
+@media (max-width: 480px) {
+  .category-value { font-size: 18px; }
+  .match-name { font-size: 13px; }
+  .alt-match-name { width: 110px; }
+}
