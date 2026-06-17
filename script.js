@@ -1620,7 +1620,7 @@ async function runBenchmark() {
   document.getElementById('benchmark-results').style.display    = 'none';
 
   // Animate progress dots
-  const labels = ['ViT-Base', 'ResNet-50', 'EfficientNet', 'ConvNeXt', 'BEiT-Base'];
+  const labels = ['ViT-Base', 'ResNet-50', 'MobileNet-V2', 'Swin-Tiny', 'DeiT-Base'];
   labels.forEach((l, i) => {
     setTimeout(() => {
       const el = document.getElementById('bm-prog-' + i);
@@ -1686,14 +1686,18 @@ function renderBenchmarkResults(data) {
   const bestResult    = results.find(r => r.id === best_model);
   const fastestResult = results.find(r => r.id === fastest);
 
+  // Get category for best result
+  const bestCategory = bestResult ? getCategory(bestResult.top_label) : { category: '—', emoji: '🔍' };
+
   let html = '';
 
-  // ── Summary cards ──
+  // ── Summary cards (now with class/category) ──
   html += `<div class="bm-summary">
     <div class="bm-summary-card">
       <div class="bm-summary-icon">⭐</div>
       <div class="bm-summary-val">${bestResult ? bestResult.name : '—'}</div>
       <div class="bm-summary-lbl">Highest Confidence</div>
+      ${bestResult ? `<div style="margin-top:6px;font-size:11px;color:var(--accent3);font-family:'DM Mono',monospace;">${bestCategory.emoji} ${bestCategory.category}</div>` : ''}
     </div>
     <div class="bm-summary-card">
       <div class="bm-summary-icon">⚡</div>
@@ -1705,9 +1709,44 @@ function renderBenchmarkResults(data) {
       <div class="bm-summary-val">${total_time}s</div>
       <div class="bm-summary-lbl">Total Time</div>
     </div>
+    <div class="bm-summary-card">
+      <div class="bm-summary-icon">🏷️</div>
+      <div class="bm-summary-val">${bestResult ? bestCategory.emoji + ' ' + bestCategory.category : '—'}</div>
+      <div class="bm-summary-lbl">Detected Class</div>
+    </div>
   </div>`;
 
-  // ── Results table ──
+  // ── Consensus Analysis Card ──
+  if (successful.length >= 2) {
+    const topLabels = successful.map(r => r.top_label);
+    const labelFreq = {};
+    topLabels.forEach(l => { labelFreq[l] = (labelFreq[l] || 0) + 1; });
+    const sorted = Object.entries(labelFreq).sort((a,b) => b[1] - a[1]);
+    const consensusLabel = sorted[0][0];
+    const consensusCount = sorted[0][1];
+    const consensusCat = getCategory(consensusLabel);
+    const agreement = Math.round((consensusCount / successful.length) * 100);
+
+    html += `<div class="card" style="padding:16px;margin-bottom:16px;border-left:3px solid var(--accent3);">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+        <div style="font-size:24px;">${consensusCat.emoji}</div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'DM Mono',monospace;">Model Consensus</div>
+          <div style="font-size:18px;font-weight:800;color:var(--text);letter-spacing:-0.5px;">${consensusCat.category}</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;">
+          <div style="font-size:22px;font-weight:800;color:var(--accent3);">${agreement}%</div>
+          <div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;">agreement</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.6;">
+        ${consensusCount} of ${successful.length} models identified this as <strong style="color:var(--text);">"${consensusLabel}"</strong> (${consensusCat.category}).
+        ${sorted.length > 1 ? `Alternative: "${sorted[1][0]}" (${getCategory(sorted[1][0]).category}).` : ''}
+      </div>
+    </div>`;
+  }
+
+  // ── Results table (with Class column) ──
   html += `<div style="overflow-x:auto;">
   <table class="bm-table">
     <thead>
@@ -1715,6 +1754,7 @@ function renderBenchmarkResults(data) {
         <th>Model</th>
         <th>Architecture</th>
         <th>Top Label</th>
+        <th>Class</th>
         <th>Confidence</th>
         <th>Time</th>
         <th>Badge</th>
@@ -1728,6 +1768,7 @@ function renderBenchmarkResults(data) {
     const rowClass  = isBest ? 'bm-best' : '';
 
     if (r.status === 'success') {
+      const cat = getCategory(r.top_label);
       html += `<tr class="${rowClass}">
         <td>
           <div class="bm-model-name">
@@ -1736,7 +1777,8 @@ function renderBenchmarkResults(data) {
           </div>
         </td>
         <td><span class="bm-arch-badge">${r.architecture}</span></td>
-        <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.top_label}</td>
+        <td style="font-weight:600;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.top_label}">${r.top_label}</td>
+        <td><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.15);border-radius:6px;font-size:11px;font-weight:600;color:var(--accent3);white-space:nowrap;">${cat.emoji} ${cat.category}</span></td>
         <td>
           <div class="bm-conf-wrap">
             <div class="bm-conf-bar-track">
@@ -1755,7 +1797,7 @@ function renderBenchmarkResults(data) {
       html += `<tr>
         <td><div class="bm-model-name"><div class="bm-model-dot" style="background:${r.color}"></div>${r.name}</div></td>
         <td><span class="bm-arch-badge">${r.architecture}</span></td>
-        <td colspan="3" style="color:var(--text3);font-size:12px;font-family:'DM Mono',monospace;">${r.error || 'Failed'}</td>
+        <td colspan="4" style="color:var(--text3);font-size:12px;font-family:'DM Mono',monospace;">${r.error || 'Failed'}</td>
         <td><span class="bm-badge error">❌ Error</span></td>
       </tr>`;
     }
@@ -1763,17 +1805,72 @@ function renderBenchmarkResults(data) {
 
   html += `</tbody></table></div>`;
 
-  // ── Top labels per model (expandable) ──
+  // ── Confidence Comparison Chart ──
+  if (successful.length >= 2) {
+    html += `<div class="card" style="padding:16px;margin-top:16px;">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.5px;font-family:'DM Mono',monospace;">📊 Confidence Comparison</div>
+      <div style="display:flex;align-items:flex-end;gap:8px;height:160px;padding:0 4px;">`;
+    
+    const maxScore = Math.max(...successful.map(r => r.top_score));
+    successful.forEach(r => {
+      const heightPct = Math.round((r.top_score / maxScore) * 100);
+      const cat = getCategory(r.top_label);
+      html += `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+        <div style="font-size:10px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text2);">${r.top_score.toFixed(1)}%</div>
+        <div style="width:100%;background:linear-gradient(to top,${r.color},${r.color}88);border-radius:6px 6px 2px 2px;height:${heightPct}%;min-height:8px;transition:height 1s ease;position:relative;" title="${r.name}: ${r.top_label} (${cat.category})">
+        </div>
+        <div style="font-size:9px;font-weight:600;color:var(--text3);text-align:center;line-height:1.2;">${r.name.split('-')[0]}</div>
+        <div style="font-size:8px;color:var(--text3);font-family:'DM Mono',monospace;">${cat.emoji}</div>
+      </div>`;
+    });
+    
+    html += `</div></div>`;
+  }
+
+  // ── Speed vs Accuracy scatter info ──
+  if (successful.length >= 2) {
+    const fastestTime = Math.min(...successful.map(r => r.time_sec));
+    const slowestTime = Math.max(...successful.map(r => r.time_sec));
+    const highestConf = Math.max(...successful.map(r => r.top_score));
+    const lowestConf = Math.min(...successful.map(r => r.top_score));
+
+    html += `<div class="card" style="padding:16px;margin-top:12px;">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;font-family:'DM Mono',monospace;">⚡ Speed vs Accuracy Insights</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">`;
+
+    successful.forEach(r => {
+      const cat = getCategory(r.top_label);
+      const speedRating = r.time_sec <= fastestTime * 1.2 ? '🟢 Fast' : r.time_sec >= slowestTime * 0.8 ? '🔴 Slow' : '🟡 Mid';
+      const confRating = r.top_score >= highestConf * 0.95 ? '🟢 High' : r.top_score <= lowestConf * 1.05 ? '🔴 Low' : '🟡 Mid';
+      html += `<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;"></div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);">${r.name}</div>
+        </div>
+        <div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;line-height:1.8;">
+          ${cat.emoji} ${cat.category}<br>
+          Speed: ${speedRating} (${r.time_sec}s)<br>
+          Conf: ${confRating} (${r.top_score.toFixed(1)}%)
+        </div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  }
+
+  // ── Top labels per model (with category) ──
   html += `<div style="margin-top:16px;">
     <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;font-family:'DM Mono',monospace;">All Labels Per Model</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">`;
 
   results.filter(r => r.status === 'success').forEach(r => {
+    const topCat = getCategory(r.top_label);
     html += `<div class="card" style="padding:12px;">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
         <div style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;"></div>
         <div style="font-size:12px;font-weight:700;">${r.name}</div>
-      </div>`;
+      </div>
+      <div style="font-size:10px;color:var(--accent3);font-family:'DM Mono',monospace;margin-bottom:8px;">${topCat.emoji} ${topCat.category}</div>`;
     r.labels.forEach((l, i) => {
       html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
         <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--accent3);width:20px;">#${i+1}</div>
@@ -1786,12 +1883,18 @@ function renderBenchmarkResults(data) {
 
   html += `</div></div>`;
 
-  // ── Reset button ──
-  html += `<button class="bm-reset-btn" onclick="resetBenchmark()">↩ Run Another Benchmark</button>`;
+  // ── Export & Action buttons ──
+  html += `<div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+    <button class="bm-reset-btn" onclick="resetBenchmark()">↩ Run Another Benchmark</button>
+    <button class="bm-reset-btn" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);" onclick="exportBenchmarkResults()">📋 Copy Results</button>
+  </div>`;
 
   const resultsDiv = document.getElementById('benchmark-results');
   resultsDiv.innerHTML = html;
   resultsDiv.style.display = 'block';
+
+  // Store latest benchmark data for export
+  window._lastBenchmarkData = data;
 
   // Animate confidence bars
   setTimeout(() => {
@@ -1801,6 +1904,42 @@ function renderBenchmarkResults(data) {
   }, 200);
 
   showToast('Benchmark complete! 🏆', 'success');
+}
+
+// ── Export benchmark results ──
+function exportBenchmarkResults() {
+  const data = window._lastBenchmarkData;
+  if (!data) { showToast('No benchmark results to export.', 'warning'); return; }
+
+  const lines = [
+    '🏆 VisionCloud — Benchmark Results',
+    '═'.repeat(40),
+    `Total Time: ${data.total_time}s`,
+    '',
+    'Model Results:',
+    '─'.repeat(40),
+  ];
+
+  data.results.forEach(r => {
+    if (r.status === 'success') {
+      const cat = getCategory(r.top_label);
+      lines.push(`${r.name} (${r.architecture})`);
+      lines.push(`  → ${cat.emoji} ${cat.category}: "${r.top_label}" — ${r.top_score.toFixed(1)}% in ${r.time_sec}s`);
+      if (r.id === data.best_model) lines.push(`  ⭐ HIGHEST CONFIDENCE`);
+      if (r.id === data.fastest) lines.push(`  ⚡ FASTEST`);
+      lines.push('');
+    } else {
+      lines.push(`${r.name}: ❌ ${r.error || 'Failed'}`);
+      lines.push('');
+    }
+  });
+
+  lines.push('─'.repeat(40));
+  lines.push('Generated by VisionCloud · https://raghav21malik.github.io/image-recognition-frontend/');
+
+  navigator.clipboard.writeText(lines.join('\n'))
+    .then(() => showToast('Benchmark results copied to clipboard! 📋', 'success'))
+    .catch(() => showToast('Could not copy. Try manually.', 'error'));
 }
 
 // ── Reset benchmark ──
@@ -1813,7 +1952,7 @@ function resetBenchmark() {
   document.getElementById('benchmark-results').style.display    = 'none';
   document.getElementById('benchmarkFileInput').value           = '';
   // Reset progress
-  const labels = ['ViT-Base','ResNet-50','EfficientNet','ConvNeXt','BEiT-Base'];
+  const labels = ['ViT-Base','ResNet-50','MobileNet-V2','Swin-Tiny','DeiT-Base'];
   labels.forEach((l, i) => {
     const el = document.getElementById('bm-prog-' + i);
     if (el) { el.textContent = '⏳ ' + l; el.className = 'bm-prog-item'; }
