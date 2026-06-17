@@ -1882,31 +1882,115 @@ function renderBenchmarkResults(data) {
     html += `</div></div>`;
   }
 
-  // ── Top labels per model (with category) ──
-  html += `<div style="margin-top:16px;">
-    <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;font-family:'DM Mono',monospace;">All Labels Per Model</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">`;
+  // ── Model-by-Model Comparison (YOUR IMAGE vs REFERENCE IMAGE) ──
+  html += `
+  <div style="margin-top:24px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <div style="font-size:15px;font-weight:800;color:var(--text);letter-spacing:-0.3px;">🔬 Model-by-Model Comparison</div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:18px;font-family:'DM Mono',monospace;line-height:1.6;">
+      Each card shows: <strong style="color:var(--text2);">Your uploaded image</strong> (left) vs <strong style="color:var(--text2);">the reference image</strong> the AI model matched it against (right).<br>
+      The reference image represents what the model has learned to recognise as that category from its training data.
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:18px;">`;
 
   results.filter(r => r.status === 'success').forEach(r => {
-    const topCat = getCategory(r.top_label);
-    html += `<div class="card" style="padding:12px;">
-      <img src="${image_url}" alt="Analyzed" style="width:100%;height:100px;object-fit:cover;border-radius:6px;margin-bottom:10px;border:1px solid rgba(255,255,255,0.05);">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-        <div style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;"></div>
-        <div style="font-size:12px;font-weight:700;">${r.name}</div>
+    const cat       = getCategory(r.top_label);
+    const isBest    = r.id === best_model;
+    const isFastest = r.id === fastest;
+    // Photorealistic reference image matching what the model predicted
+    const aiRef = `https://image.pollinations.ai/prompt/photorealistic+${encodeURIComponent(r.top_label)}+high+quality+natural+photo?width=400&height=300&nologo=true&seed=${r.name.length}`;
+
+    html += `
+    <div class="card" style="padding:0;overflow:hidden;border:1.5px solid ${isBest ? r.color : 'rgba(255,255,255,0.07)'};border-radius:14px;position:relative;">
+
+      <!-- Badges -->
+      ${isBest    ? `<div style="position:absolute;top:9px;left:9px;z-index:10;background:${r.color};color:#000;font-size:9px;font-weight:900;padding:3px 8px;border-radius:99px;font-family:'DM Mono',monospace;letter-spacing:.5px;box-shadow:0 2px 8px ${r.color}66;">⭐ BEST</div>` : ''}
+      ${isFastest ? `<div style="position:absolute;top:9px;${isBest?'left:68px':'left:9px'};z-index:10;background:#22d3ee;color:#000;font-size:9px;font-weight:900;padding:3px 8px;border-radius:99px;font-family:'DM Mono',monospace;letter-spacing:.5px;box-shadow:0 2px 8px #22d3ee66;">⚡ FASTEST</div>` : ''}
+
+      <!-- Side-by-side images -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;">
+
+        <!-- YOUR UPLOADED IMAGE -->
+        <div style="position:relative;overflow:hidden;">
+          <img src="${image_url}"
+               alt="Your uploaded image"
+               title="Your uploaded image — input to ${r.name}"
+               style="width:100%;height:180px;object-fit:cover;display:block;">
+          <!-- dark gradient overlay -->
+          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.1) 55%,transparent 100%);pointer-events:none;"></div>
+          <div style="position:absolute;bottom:0;left:0;right:0;padding:10px;">
+            <div style="font-size:8px;font-weight:700;color:rgba(255,255,255,0.5);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">📤 Your Image</div>
+            <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Input to ${r.name}</div>
+          </div>
+        </div>
+
+        <!-- REFERENCE IMAGE (what the AI matched against) -->
+        <div style="position:relative;overflow:hidden;border-left:2px solid ${r.color};">
+          <img src="${aiRef}"
+               alt="Reference: ${r.top_label}"
+               title="AI reference image for '${r.top_label}' — what the model has learned to recognise"
+               style="width:100%;height:180px;object-fit:cover;display:block;"
+               onerror="this.src='https://image.pollinations.ai/prompt/${encodeURIComponent(r.top_label)}+photo?width=400&height=300&nologo=true'">
+          <!-- dark gradient overlay -->
+          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.1) 55%,transparent 100%);pointer-events:none;"></div>
+          <!-- confidence badge -->
+          <div style="position:absolute;top:9px;right:9px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);border:1.5px solid ${r.color};border-radius:8px;padding:4px 9px;font-size:13px;font-weight:900;color:${r.color};font-family:'DM Mono',monospace;line-height:1;">${r.top_score.toFixed(1)}%</div>
+          <div style="position:absolute;bottom:0;left:0;right:0;padding:10px;">
+            <div style="font-size:8px;font-weight:700;color:${r.color};font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">🔍 Reference Match</div>
+            <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.9);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.top_label}</div>
+          </div>
+        </div>
       </div>
-      <div style="font-size:10px;color:var(--accent3);font-family:'DM Mono',monospace;margin-bottom:8px;">${topCat.emoji} ${topCat.category}</div>`;
-    r.labels.forEach((l, i) => {
-      html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
-        <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--accent3);width:20px;">#${i+1}</div>
-        <div style="flex:1;font-size:11px;color:var(--text);text-transform:capitalize;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.name}</div>
-        <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);">${l.confidence.toFixed(1)}%</div>
-      </div>`;
-    });
-    html += `</div>`;
+
+      <!-- Divider label -->
+      <div style="background:rgba(255,255,255,0.03);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);padding:6px 14px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <div style="width:9px;height:9px;border-radius:50%;background:${r.color};box-shadow:0 0 6px ${r.color}88;"></div>
+          <span style="font-size:12px;font-weight:800;color:var(--text);">${r.name}</span>
+        </div>
+        <span style="font-size:9px;font-weight:700;color:var(--text3);font-family:'DM Mono',monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);padding:2px 7px;border-radius:4px;">${r.architecture}</span>
+      </div>
+
+      <!-- Result detail -->
+      <div style="padding:12px 14px;">
+
+        <!-- Main prediction -->
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Model Predicted</div>
+            <div style="font-size:15px;font-weight:800;color:var(--text);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.top_label}</div>
+            <div style="font-size:12px;color:${r.color};font-weight:600;margin-top:3px;">${cat.emoji} ${cat.category}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:28px;font-weight:900;color:${r.color};line-height:1;letter-spacing:-1px;">${r.top_score.toFixed(1)}%</div>
+            <div style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:1px;">confidence</div>
+          </div>
+        </div>
+
+        <!-- Confidence bar -->
+        <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;margin-bottom:12px;">
+          <div style="height:100%;background:linear-gradient(90deg,${r.color},${r.color}88);width:0%;border-radius:99px;transition:width 1.3s ease;" data-w="${Math.round(r.top_score)}"></div>
+        </div>
+
+        <!-- Other predictions -->
+        <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Other Predictions</div>
+        ${r.labels.slice(1, 4).map((l) => `
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;gap:8px;">
+            <span style="font-size:11px;color:var(--text2);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;">${l.name}</span>
+            <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);flex-shrink:0;">${l.confidence.toFixed(1)}%</span>
+          </div>`).join('')}
+
+        <!-- Footer timing -->
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.05);font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);">
+          ⏱ Inference time: <span style="color:var(--text2);font-weight:600;">${r.time_sec}s</span>
+        </div>
+      </div>
+    </div>`;
   });
 
   html += `</div></div>`;
+
 
   // ── Export & Action buttons ──
   html += `<div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
@@ -1921,12 +2005,12 @@ function renderBenchmarkResults(data) {
   // Store latest benchmark data for export
   window._lastBenchmarkData = data;
 
-  // Animate confidence bars
+  // Animate all confidence bars (table + cards)
   setTimeout(() => {
-    resultsDiv.querySelectorAll('.bm-conf-bar-fill[data-w]').forEach(bar => {
+    resultsDiv.querySelectorAll('[data-w]').forEach(bar => {
       bar.style.width = bar.getAttribute('data-w') + '%';
     });
-  }, 200);
+  }, 300);
 
   showToast('Benchmark complete! 🏆', 'success');
 }
