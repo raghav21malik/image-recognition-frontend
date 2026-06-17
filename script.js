@@ -1898,8 +1898,8 @@ function renderBenchmarkResults(data) {
     const cat       = getCategory(r.top_label);
     const isBest    = r.id === best_model;
     const isFastest = r.id === fastest;
-    // Photorealistic reference image matching what the model predicted
-    const aiRef = `https://image.pollinations.ai/prompt/photorealistic+${encodeURIComponent(r.top_label)}+high+quality+natural+photo?width=400&height=300&nologo=true&seed=${r.name.length}`;
+    // Unique id for the reference img element so we can update it after render
+    const refId = 'ref-' + r.name.replace(/[^a-z0-9]/gi, '');
 
     html += `
     <div class="card" style="padding:0;overflow:hidden;border:1.5px solid ${isBest ? r.color : 'rgba(255,255,255,0.07)'};border-radius:14px;position:relative;">
@@ -1926,17 +1926,23 @@ function renderBenchmarkResults(data) {
         </div>
 
         <!-- REFERENCE IMAGE (what the AI matched against) -->
-        <div style="position:relative;overflow:hidden;border-left:2px solid ${r.color};">
-          <img src="${aiRef}"
+        <div style="position:relative;overflow:hidden;border-left:2px solid ${r.color};background:rgba(0,0,0,0.3);">
+          <!-- Loading spinner shown until image loads -->
+          <div id="ref-loader-${refId}" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:5;">
+            <div style="width:28px;height:28px;border:2px solid rgba(255,255,255,0.1);border-top:2px solid ${r.color};border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            <div style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;text-align:center;">Fetching<br>reference...</div>
+          </div>
+          <!-- Reference image — src set by loadRefImages() after render -->
+          <img id="${refId}"
+               data-label="${r.top_label}"
                alt="Reference: ${r.top_label}"
-               title="AI reference image for '${r.top_label}' — what the model has learned to recognise"
-               style="width:100%;height:180px;object-fit:cover;display:block;"
-               onerror="this.src='https://image.pollinations.ai/prompt/${encodeURIComponent(r.top_label)}+photo?width=400&height=300&nologo=true'">
+               title="Reference image for '${r.top_label}' — representative training class image"
+               style="width:100%;height:180px;object-fit:cover;display:block;opacity:0;transition:opacity 0.4s ease;">
           <!-- dark gradient overlay -->
           <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.1) 55%,transparent 100%);pointer-events:none;"></div>
           <!-- confidence badge -->
-          <div style="position:absolute;top:9px;right:9px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);border:1.5px solid ${r.color};border-radius:8px;padding:4px 9px;font-size:13px;font-weight:900;color:${r.color};font-family:'DM Mono',monospace;line-height:1;">${r.top_score.toFixed(1)}%</div>
-          <div style="position:absolute;bottom:0;left:0;right:0;padding:10px;">
+          <div style="position:absolute;top:9px;right:9px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);border:1.5px solid ${r.color};border-radius:8px;padding:4px 9px;font-size:13px;font-weight:900;color:${r.color};font-family:'DM Mono',monospace;line-height:1;z-index:6;">${r.top_score.toFixed(1)}%</div>
+          <div style="position:absolute;bottom:0;left:0;right:0;padding:10px;z-index:6;">
             <div style="font-size:8px;font-weight:700;color:${r.color};font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">🔍 Reference Match</div>
             <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.9);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.top_label}</div>
           </div>
@@ -2012,7 +2018,81 @@ function renderBenchmarkResults(data) {
     });
   }, 300);
 
+  // Load reference images asynchronously after DOM is ready
+  setTimeout(() => loadRefImages(), 100);
+
   showToast('Benchmark complete! 🏆', 'success');
+}
+
+
+// ── Async Reference Image Loader ──
+// For each comparison card, fetch a real reference image from Wikipedia
+// (real encyclopedic photo of the class the model matched). Falls back to
+// DuckDuckGo CDN images, then a styled text placeholder.
+async function loadRefImages() {
+  const imgs = document.querySelectorAll('img[data-label]');
+  if (!imgs.length) return;
+
+  const fetchWikiImage = async (label) => {
+    // Try Wikipedia REST API — returns thumbnail of the article for the label
+    try {
+      const slug = label.replace(/[^a-z0-9 ]/gi, '').trim().replace(/\s+/g, '_');
+      const res  = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(slug)}`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!res.ok) throw new Error('wiki fail');
+      const json = await res.json();
+      if (json.thumbnail && json.thumbnail.source) {
+        // Make a larger version by replacing size in URL (Wikipedia thumbnail URLs support ?width=)
+        return json.thumbnail.source.replace(/\/\d+px-/, '/400px-');
+      }
+    } catch (_) {}
+
+    // Fallback 1: DuckDuckGo image CDN (static logo images per topic)
+    try {
+      const ddgRes = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(label)}&format=json&pretty=0&skip_disambig=1`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (ddgRes.ok) {
+        const ddg = await ddgRes.json();
+        if (ddg.Image && ddg.Image.startsWith('http')) return ddg.Image;
+      }
+    } catch (_) {}
+
+    // Fallback 2: Pollinations AI (generates image — may be slow but works)
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent('photo of ' + label + ' realistic high quality')}?width=400&height=300&nologo=true`;
+  };
+
+  // Load all reference images in parallel
+  const tasks = Array.from(imgs).map(async (img) => {
+    const label  = img.getAttribute('data-label');
+    const loader = document.getElementById('ref-loader-' + img.id);
+    if (!label) return;
+
+    try {
+      const src = await fetchWikiImage(label);
+      img.src   = src;
+      img.onload = () => {
+        img.style.opacity = '1';
+        if (loader) loader.style.display = 'none';
+      };
+      img.onerror = () => {
+        // Final fallback: show a styled placeholder
+        if (loader) {
+          loader.innerHTML = `
+            <div style="text-align:center;padding:12px;">
+              <div style="font-size:28px;margin-bottom:6px;">🔍</div>
+              <div style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;text-transform:capitalize;">${label}</div>
+            </div>`;
+        }
+        img.style.display = 'none';
+      };
+    } catch (e) {
+      if (loader) loader.innerHTML = `<div style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;text-align:center;padding:8px;">No image<br>available</div>`;
+    }
+  });
+
+  await Promise.all(tasks);
 }
 
 // ── Export benchmark results ──
@@ -2240,3 +2320,5 @@ function getCategory(labelName) {
   }
   return { category: "General Object", emoji: "🔍" };
 }
+
+        
