@@ -386,9 +386,14 @@ function renderResults(data) {
 
           <!-- Primary Category -->
           <div class="category-block">
-            <div class="category-label">🏷️ PRIMARY CATEGORY</div>
-            <div class="category-value">${emoji} ${category}</div>
-            <div class="category-sub">Ground truth class family from ${mInfo.dataset.split(' ')[0]}</div>
+            <div style="display:flex; gap: 12px; align-items:center;">
+              <img src="https://image.pollinations.ai/prompt/${encodeURIComponent(topLabel)}?width=120&height=120&nologo=true" style="width:60px;height:60px;border-radius:8px;object-fit:cover;border:1px solid rgba(255,255,255,0.1);" alt="Reference" title="AI Reference Image for: ${topLabel}">
+              <div>
+                <div class="category-label">🏷️ PRIMARY CATEGORY</div>
+                <div class="category-value">${emoji} ${category}</div>
+                <div class="category-sub">AI Reference for "${topLabel}"</div>
+              </div>
+            </div>
           </div>
 
           <!-- Best Match -->
@@ -1763,7 +1768,8 @@ function renderBenchmarkResults(data) {
   <table class="bm-table">
     <thead>
       <tr>
-        <th>Image</th>
+        <th>Target Image</th>
+        <th>Reference</th>
         <th>Model</th>
         <th>Architecture</th>
         <th>Top Label</th>
@@ -1782,8 +1788,10 @@ function renderBenchmarkResults(data) {
 
     if (r.status === 'success') {
       const cat = getCategory(r.top_label);
+      const refImg = `https://image.pollinations.ai/prompt/${encodeURIComponent(r.top_label)}?width=120&height=120&nologo=true`;
       html += `<tr class="${rowClass}">
-        <td><img src="${image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" alt="Thumb"></td>
+        <td><img src="${image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" alt="Target" title="Your uploaded image"></td>
+        <td><img src="${refImg}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--accent);" alt="Ref" title="AI Reference: ${r.top_label}"></td>
         <td>
           <div class="bm-model-name">
             <div class="bm-model-dot" style="background:${r.color}"></div>
@@ -1809,7 +1817,8 @@ function renderBenchmarkResults(data) {
       </tr>`;
     } else {
       html += `<tr>
-        <td><img src="${image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" alt="Thumb"></td>
+        <td><img src="${image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" alt="Target"></td>
+        <td><div style="width:40px;height:40px;border-radius:6px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;font-size:16px;">❌</div></td>
         <td><div class="bm-model-name"><div class="bm-model-dot" style="background:${r.color}"></div>${r.name}</div></td>
         <td><span class="bm-arch-badge">${r.architecture}</span></td>
         <td colspan="4" style="color:var(--text3);font-size:12px;font-family:'DM Mono',monospace;">${r.error || 'Failed'}</td>
