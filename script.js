@@ -1679,7 +1679,7 @@ async function runBenchmark() {
 function renderBenchmarkResults(data) {
   document.getElementById('benchmark-loading').style.display = 'none';
 
-  const { results, best_model, fastest, total_time } = data;
+  const { results, best_model, fastest, total_time, image_url } = data;
   const successful = results.filter(r => r.status === 'success');
 
   // Find best name for summary
@@ -1690,6 +1690,18 @@ function renderBenchmarkResults(data) {
   const bestCategory = bestResult ? getCategory(bestResult.top_label) : { category: '—', emoji: '🔍' };
 
   let html = '';
+
+  // ── Target Image Overview ──
+  if (image_url) {
+    html += `<div class="result-card full-width" style="padding:0;overflow:hidden;margin-bottom:16px;">
+      <div class="analyzed-img-card" onclick="window.open('${image_url}','_blank')" style="border-radius:0;border:none;box-shadow:none;margin:0;">
+        <img src="${image_url}" alt="Analyzed image" style="width:100%;max-height:240px;object-fit:cover;display:block;"/>
+        <div class="analyzed-img-overlay">
+          <span class="analyzed-img-label">🖼️ Target Image for Benchmark</span>
+        </div>
+      </div>
+    </div>`;
+  }
 
   // ── Summary cards (now with class/category) ──
   html += `<div class="bm-summary">
@@ -1751,6 +1763,7 @@ function renderBenchmarkResults(data) {
   <table class="bm-table">
     <thead>
       <tr>
+        <th>Image</th>
         <th>Model</th>
         <th>Architecture</th>
         <th>Top Label</th>
@@ -1770,6 +1783,7 @@ function renderBenchmarkResults(data) {
     if (r.status === 'success') {
       const cat = getCategory(r.top_label);
       html += `<tr class="${rowClass}">
+        <td><img src="${image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" alt="Thumb"></td>
         <td>
           <div class="bm-model-name">
             <div class="bm-model-dot" style="background:${r.color}"></div>
@@ -1795,6 +1809,7 @@ function renderBenchmarkResults(data) {
       </tr>`;
     } else {
       html += `<tr>
+        <td><img src="${image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" alt="Thumb"></td>
         <td><div class="bm-model-name"><div class="bm-model-dot" style="background:${r.color}"></div>${r.name}</div></td>
         <td><span class="bm-arch-badge">${r.architecture}</span></td>
         <td colspan="4" style="color:var(--text3);font-size:12px;font-family:'DM Mono',monospace;">${r.error || 'Failed'}</td>
@@ -1866,6 +1881,7 @@ function renderBenchmarkResults(data) {
   results.filter(r => r.status === 'success').forEach(r => {
     const topCat = getCategory(r.top_label);
     html += `<div class="card" style="padding:12px;">
+      <img src="${image_url}" alt="Analyzed" style="width:100%;height:100px;object-fit:cover;border-radius:6px;margin-bottom:10px;border:1px solid rgba(255,255,255,0.05);">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
         <div style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;"></div>
         <div style="font-size:12px;font-weight:700;">${r.name}</div>
@@ -1914,6 +1930,7 @@ function exportBenchmarkResults() {
   const lines = [
     '🏆 VisionCloud — Benchmark Results',
     '═'.repeat(40),
+    `Target Image: ${data.image_url || 'Unknown'}`,
     `Total Time: ${data.total_time}s`,
     '',
     'Model Results:',
