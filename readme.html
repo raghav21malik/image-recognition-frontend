@@ -163,9 +163,9 @@
 /* Model table row colors */
 .model-dot-vit  { color: #6366f1; }
 .model-dot-res  { color: #22d3ee; }
-.model-dot-eff  { color: #34d399; }
-.model-dot-conv { color: #f472b6; }
-.model-dot-beit { color: #fbbf24; }
+.model-dot-mob  { color: #34d399; }
+.model-dot-swin { color: #f472b6; }
+.model-dot-deit { color: #fbbf24; }
 
 /* Team */
 .readme-team {
@@ -387,25 +387,93 @@
           <td><code>microsoft/resnet-50</code></td>
         </tr>
         <tr>
-          <td class="model-dot-eff">●</td>
-          <td><strong>EfficientNet-B0</strong></td>
-          <td>EfficientNet</td>
-          <td><code>google/efficientnet-b0</code></td>
+          <td class="model-dot-mob">●</td>
+          <td><strong>MobileNet-V2</strong></td>
+          <td>Depthwise Separable CNN</td>
+          <td><code>google/mobilenet_v2_1.0_224</code></td>
         </tr>
         <tr>
-          <td class="model-dot-conv">●</td>
-          <td><strong>ConvNeXt-Tiny</strong></td>
-          <td>Modern CNN</td>
-          <td><code>facebook/convnext-tiny-224</code></td>
+          <td class="model-dot-swin">●</td>
+          <td><strong>Swin-Tiny</strong></td>
+          <td>Shifted Window Transformer</td>
+          <td><code>microsoft/swin-tiny-patch4-window7-224</code></td>
         </tr>
         <tr>
-          <td class="model-dot-beit">●</td>
-          <td><strong>BEiT-Base/16</strong></td>
-          <td>BERT for Vision</td>
-          <td><code>microsoft/beit-base-patch16-224</code></td>
+          <td class="model-dot-deit">●</td>
+          <td><strong>DeiT-Base</strong></td>
+          <td>Knowledge Distillation Transformer</td>
+          <td><code>facebook/deit-base-distilled-patch16-224</code></td>
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Research Background -->
+  <div class="readme-section">
+    <div class="readme-section-title">04.5 — Research Background</div>
+    <div class="readme-h2">Research Background</div>
+    <div class="readme-p">These five models were deliberately chosen to represent the full architectural spectrum of modern computer vision — from pioneering CNNs to cutting-edge Transformers.</div>
+    <table class="readme-table">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Paper</th>
+          <th>Venue</th>
+          <th>Year</th>
+          <th>Top-1 Acc</th>
+          <th>Params</th>
+          <th>Key Innovation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>ViT-Base/16</strong></td>
+          <td>An Image is Worth 16×16 Words</td>
+          <td><code>ICLR 2021</code></td>
+          <td>2020</td>
+          <td>85.8%</td>
+          <td>86M</td>
+          <td>Pure Transformer; image patches as tokens</td>
+        </tr>
+        <tr>
+          <td><strong>ResNet-50</strong></td>
+          <td>Deep Residual Learning</td>
+          <td><code>CVPR 2016</code></td>
+          <td>2015</td>
+          <td>80.8%</td>
+          <td>25M</td>
+          <td>Skip connections; solved vanishing gradient</td>
+        </tr>
+        <tr>
+          <td><strong>MobileNet-V2</strong></td>
+          <td>Inverted Residuals &amp; Linear Bottlenecks</td>
+          <td><code>CVPR 2018</code></td>
+          <td>2018</td>
+          <td>71.8%</td>
+          <td>3.4M</td>
+          <td>Depthwise separable convolutions for mobile</td>
+        </tr>
+        <tr>
+          <td><strong>Swin-Tiny</strong></td>
+          <td>Hierarchical Vision Transformer</td>
+          <td><code>ICCV 2021</code></td>
+          <td>2021</td>
+          <td>81.3%</td>
+          <td>28M</td>
+          <td>Shifted window attention; linear complexity</td>
+        </tr>
+        <tr>
+          <td><strong>DeiT-Base</strong></td>
+          <td>Data-Efficient Image Transformers</td>
+          <td><code>ICML 2021</code></td>
+          <td>2020</td>
+          <td>83.4%</td>
+          <td>86M</td>
+          <td>Knowledge distillation from CNN teacher</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="readme-p">The architectural progression from ResNet (2015) through MobileNet-V2 (2018) to ViT, DeiT, and Swin (2020-2021) mirrors the field's shift from purely convolutional approaches to attention-based mechanisms. By benchmarking across all five, VisionCloud reveals how each paradigm handles different visual inputs — demonstrating that no single architecture dominates across all image types.</div>
   </div>
 
   <!-- API Reference -->
@@ -534,7 +602,7 @@
     <div class="readme-section-title">09 — License</div>
     <div class="readme-h2">License &amp; Acknowledgements</div>
     <div class="readme-p">This project is built for academic purposes as part of B.Tech CSE curriculum. All third-party services (Cloudinary, Supabase, Hugging Face, Render) are used under their respective free-tier terms.</div>
-    <div class="readme-p">AI models are open-source and hosted by Hugging Face: ViT by Google Research, ResNet &amp; BEiT by Microsoft, EfficientNet by Google Brain, ConvNeXt by Meta AI.</div>
+    <div class="readme-p">AI models are open-source and hosted by Hugging Face: ViT by Google Research, ResNet by Microsoft, MobileNet-V2 by Google, Swin Transformer by Microsoft Research Asia, DeiT by Meta (Facebook) AI.</div>
     <div style="margin-top:16px;padding:14px 18px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:12px;font-size:13px;color:var(--text2);">
       © 2026 VisionCloud · Built by Raghav Malik, Ishan Pratap Singh, Akshay Kumar, Nitin Pandey · Guided by A Sai Venkateshwar Rao
     </div>
