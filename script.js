@@ -2021,81 +2021,70 @@ function renderBenchmarkResults(data) {
   // Load reference images asynchronously after DOM is ready
   setTimeout(() => loadRefImages(), 100);
 
+  setTimeout(function() { loadRefImages(); }, 150);
   showToast('Benchmark complete! 🏆', 'success');
 }
 
-
-// ── Async Reference Image Loader ──
-// For each comparison card, fetch a real reference image from Wikipedia
-// (real encyclopedic photo of the class the model matched). Falls back to
-// DuckDuckGo CDN images, then a styled text placeholder.
-async function loadRefImages() {
-  const imgs = document.querySelectorAll('img[data-label]');
+// ==========================================
+// REFERENCE IMAGE ASYNC LOADER
+// ==========================================
+function loadRefImages() {
+  var imgs = document.querySelectorAll('img[data-label]');
   if (!imgs.length) return;
 
-  const fetchWikiImage = async (label) => {
-    // Try Wikipedia REST API — returns thumbnail of the article for the label
-    try {
-      const slug = label.replace(/[^a-z0-9 ]/gi, '').trim().replace(/\s+/g, '_');
-      const res  = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(slug)}`, {
-        headers: { 'Accept': 'application/json' }
-      });
-      if (!res.ok) throw new Error('wiki fail');
-      const json = await res.json();
-      if (json.thumbnail && json.thumbnail.source) {
-        // Make a larger version by replacing size in URL (Wikipedia thumbnail URLs support ?width=)
-        return json.thumbnail.source.replace(/\/\d+px-/, '/400px-');
-      }
-    } catch (_) {}
-
-    // Fallback 1: DuckDuckGo image CDN (static logo images per topic)
-    try {
-      const ddgRes = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(label)}&format=json&pretty=0&skip_disambig=1`, {
-        headers: { 'Accept': 'application/json' }
-      });
-      if (ddgRes.ok) {
-        const ddg = await ddgRes.json();
-        if (ddg.Image && ddg.Image.startsWith('http')) return ddg.Image;
-      }
-    } catch (_) {}
-
-    // Fallback 2: Pollinations AI (generates image — may be slow but works)
-    return `https://image.pollinations.ai/prompt/${encodeURIComponent('photo of ' + label + ' realistic high quality')}?width=400&height=300&nologo=true`;
-  };
-
-  // Load all reference images in parallel
-  const tasks = Array.from(imgs).map(async (img) => {
-    const label  = img.getAttribute('data-label');
-    const loader = document.getElementById('ref-loader-' + img.id);
-    if (!label) return;
-
-    try {
-      const src = await fetchWikiImage(label);
-      img.src   = src;
-      img.onload = () => {
-        img.style.opacity = '1';
-        if (loader) loader.style.display = 'none';
-      };
-      img.onerror = () => {
-        // Final fallback: show a styled placeholder
-        if (loader) {
-          loader.innerHTML = `
-            <div style="text-align:center;padding:12px;">
-              <div style="font-size:28px;margin-bottom:6px;">🔍</div>
-              <div style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;text-transform:capitalize;">${label}</div>
-            </div>`;
-        }
+  function applyImage(img, src, loader) {
+    img.onload = function() {
+      img.style.opacity = '1';
+      if (loader) loader.style.display = 'none';
+    };
+    img.onerror = function() {
+      if (!img._tried) {
+        img._tried = true;
+        var lbl = img.getAttribute('data-label') || '';
+        img.src = 'https://image.pollinations.ai/prompt/'
+          + encodeURIComponent('realistic photo ' + lbl)
+          + '?width=400&height=300&nologo=true';
+      } else {
         img.style.display = 'none';
-      };
-    } catch (e) {
-      if (loader) loader.innerHTML = `<div style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;text-align:center;padding:8px;">No image<br>available</div>`;
+        if (loader) {
+          var lbl2 = img.getAttribute('data-label') || '';
+          loader.innerHTML = '<div style="text-align:center;padding:16px">'
+            + '<div style="font-size:28px">\U0001f50d</div>'
+            + '<div style="font-size:9px;color:gray;margin-top:6px;text-transform:capitalize">'
+            + lbl2 + '</div></div>';
+        }
+      }
+    };
+    img.src = src;
+    if (img.complete && img.naturalWidth > 0) {
+      img.style.opacity = '1';
+      if (loader) loader.style.display = 'none';
     }
-  });
+  }
 
-  await Promise.all(tasks);
+  Array.from(imgs).forEach(function(img) {
+    var label  = img.getAttribute('data-label') || '';
+    var loader = document.getElementById('ref-loader-' + img.id);
+    var slug   = label.trim().replace(/\s+/g, '_');
+    fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(slug),
+          { headers: { Accept: 'application/json' } })
+      .then(function(r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function(j) {
+        if (j.thumbnail && j.thumbnail.source) {
+          applyImage(img, j.thumbnail.source.replace(/\/\d+px-/, '/500px-'), loader);
+        } else { throw 0; }
+      })
+      .catch(function() {
+        applyImage(img,
+          'https://image.pollinations.ai/prompt/'
+            + encodeURIComponent('realistic high quality photo of ' + label)
+            + '?width=400&height=300&nologo=true',
+          loader);
+      });
+  });
 }
 
-// ── Export benchmark results ──
+
 function exportBenchmarkResults() {
   const data = window._lastBenchmarkData;
   if (!data) { showToast('No benchmark results to export.', 'warning'); return; }
@@ -2320,5 +2309,3 @@ function getCategory(labelName) {
   }
   return { category: "General Object", emoji: "🔍" };
 }
-
-        
