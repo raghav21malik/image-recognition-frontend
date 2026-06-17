@@ -46,9 +46,9 @@ Compare 5 production-grade vision architectures **simultaneously** on any image 
 |-------|-------------|----------|
 | **ViT-Base/16** | Vision Transformer | Global attention, strong on complex scenes |
 | **ResNet-50** | Residual Network | Battle-tested baseline, fast inference |
-| **EfficientNet-B0** | Compound Scaling | Best accuracy-to-compute ratio |
-| **ConvNeXt-Tiny** | Modern CNN | Bridges CNN and Transformer design |
-| **BEiT-Base/16** | BERT for Vision | Self-supervised pre-training |
+| **MobileNet-V2** | Depthwise Separable CNN | Lightest model, optimized for mobile/edge |
+| **Swin-Tiny** | Shifted Window Transformer | Efficient hierarchical attention |
+| **DeiT-Base** | Knowledge Distillation Transformer | Data-efficient, distilled from CNN teacher |
 
 Each run surfaces: **top label · confidence score · inference time · fastest model · highest confidence model**
 
@@ -99,8 +99,8 @@ Images are stored and served via **Cloudinary CDN** — optimized delivery, no s
 │  Supabase  │  │  Cloudinary  │  │   Hugging Face API   │
 │ Auth + DB  │  │  CDN Storage │  │  5 Vision Models     │
 │ PostgreSQL │  │ Optimized    │  │  ViT · ResNet ·      │
-│            │  │ Image Serve  │  │  EfficientNet ·      │
-└────────────┘  └──────────────┘  │  ConvNeXt · BEiT     │
+│            │  │ Image Serve  │  │  MobileNet-V2 ·      │
+└────────────┘  └──────────────┘  │  Swin-Tiny · DeiT    │
                                    └──────────────────────┘
 ```
 
@@ -197,13 +197,11 @@ cd image-recognition-frontend
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|:---:|
-| `POST` | `/auth/register` | Create new user account | ❌ |
-| `POST` | `/auth/login` | Login, returns JWT token | ❌ |
-| `POST` | `/upload` | Upload image to Cloudinary | ✅ |
-| `POST` | `/classify` | Run image through all 5 models | ✅ |
-| `GET` | `/history` | Fetch user's scan history | ✅ |
-| `GET` | `/analytics` | Fetch usage analytics data | ✅ |
-| `GET` | `/search?label=` | Search scans by AI label | ✅ |
+| `GET` | `/` | Health check — API status | ❌ |
+| `POST` | `/api/upload` | Upload image → Cloudinary + AI classify + save to DB | Optional |
+| `GET` | `/api/history` | Fetch scan history (filtered by user if authenticated) | Optional |
+| `POST` | `/api/benchmark` | Run all 5 models in parallel on an image URL | ❌ |
+| `GET` | `/api/models` | Get all model info for frontend display | ❌ |
 
 ---
 
@@ -223,40 +221,61 @@ cd image-recognition-frontend
 
 ```
 image-recognition-backend/
-├── app.py                  # Flask app entry point
-├── routes/
-│   ├── auth.py             # /auth endpoints
-│   ├── classify.py         # /classify — HuggingFace calls
-│   ├── history.py          # /history — user scan records
-│   └── analytics.py        # /analytics — aggregated stats
-├── services/
-│   ├── cloudinary_service.py
-│   ├── supabase_service.py
-│   └── hf_service.py       # Hugging Face inference logic
-├── requirements.txt
-└── .env.example
+├── app.py                  # Flask app entry + blueprint registration
+├── upload.py               # /api/upload — Cloudinary + HuggingFace + Supabase
+├── benchmark.py            # /api/benchmark — 5-model parallel inference
+├── history.py              # /api/history — user scan records from Supabase
+├── requirements.txt        # Python dependencies
+├── render.yaml             # Render deployment config
+└── .env.example            # Environment variables template
 
 image-recognition-frontend/
-├── index.html              # Main app
-├── architecture.html       # Architecture diagram page
-├── css/
-│   └── style.css
-└── js/
-    ├── auth.js
-    ├── classify.js
-    ├── dashboard.js
-    └── analytics.js
+├── index.html              # Main app (Analyze, History, Analytics, Benchmark)
+├── auth.html               # Authentication page (login/register)
+├── architecture.html       # Architecture & project details page
+├── readme.html             # README documentation page
+├── readme.md               # GitHub README
+├── style.css               # All styles (~100KB)
+└── script.js               # All JavaScript logic (~85KB)
 ```
 
 ---
 
 ## 🔮 Roadmap
 
-- [ ] Add drag-and-drop image upload
 - [ ] Export scan history as CSV
 - [ ] Compare any two scans side-by-side
 - [ ] Add object detection models (YOLO, DETR)
 - [ ] Containerize backend with Docker for self-hosting
+- [ ] Add image segmentation support
+
+---
+
+## 📚 Research Background
+
+These five models were chosen to represent the **full architectural spectrum** of modern computer vision — from pioneering CNNs to cutting-edge Transformers.
+
+### Paper Citations
+
+| Model | Paper | Venue | Year | Top-1 Acc | Params |
+|-------|-------|-------|:----:|:---------:|:------:|
+| **ViT-Base/16** | *An Image is Worth 16×16 Words* | ICLR 2021 | 2020 | 85.8% | 86M |
+| **ResNet-50** | *Deep Residual Learning for Image Recognition* | CVPR 2016 | 2015 | 80.8% | 25M |
+| **MobileNet-V2** | *MobileNetV2: Inverted Residuals and Linear Bottlenecks* | CVPR 2018 | 2018 | 71.8% | 3.4M |
+| **Swin-Tiny** | *Swin Transformer: Hierarchical Vision Transformer using Shifted Windows* | ICCV 2021 | 2021 | 81.3% | 28M |
+| **DeiT-Base** | *Training Data-Efficient Image Transformers & Distillation through Attention* | ICML 2021 | 2020 | 83.4% | 86M |
+
+### Why These 5 Architectures?
+
+The selection spans the full evolution of visual AI:
+
+- **ResNet-50** (2015) — The CNN that proved depth matters. Skip connections solved vanishing gradients, enabling 100+ layer networks.
+- **MobileNet-V2** (2018) — Proved that competitive accuracy is possible with 8× fewer parameters using depthwise separable convolutions. Critical for edge/mobile deployment.
+- **ViT-Base** (2020) — The paradigm shift. First pure Transformer applied to vision, treating image patches as tokens with global self-attention.
+- **DeiT-Base** (2020) — Solved ViT's data hunger through knowledge distillation from a CNN teacher, making Transformers practical without massive pretraining datasets.
+- **Swin-Tiny** (2021) — Made Transformers efficient with shifted window attention (linear complexity), producing hierarchical features like CNNs.
+
+By benchmarking across all five, VisionCloud reveals how each architectural paradigm handles different visual inputs — demonstrating that no single architecture dominates across all image types.
 
 ---
 
