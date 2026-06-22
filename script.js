@@ -1831,9 +1831,9 @@ function renderBenchmarkResults(data) {
         <th>Target Image</th>
         <th>Reference</th>
         <th>Model</th>
-        <th>Architecture</th>
-        <th>Top Label</th>
-        <th>Class</th>
+        <th>Architecture Family</th>
+        <th>Top Label (Ground Truth)</th>
+        <th>Category</th>
         <th>Confidence</th>
         <th>Time</th>
         <th>Badge</th>
@@ -1855,10 +1855,13 @@ function renderBenchmarkResults(data) {
         <td>
           <div class="bm-model-name">
             <div class="bm-model-dot" style="background:${r.color}"></div>
-            ${r.name}
+            <div>
+              <div style="font-weight:700;">${r.name}</div>
+              <div style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:1px;">${r.dataset || 'ImageNet'} · ${r.params || ''}</div>
+            </div>
           </div>
         </td>
-        <td><span class="bm-arch-badge">${r.architecture}</span></td>
+        <td><span class="bm-arch-badge">${r.architecture}</span><div style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:3px;">${r.family || ''}</div></td>
         <td style="font-weight:600;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.top_label}">${r.top_label}</td>
         <td><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.15);border-radius:6px;font-size:11px;font-weight:600;color:var(--accent3);white-space:nowrap;">${cat.emoji} ${cat.category}</span></td>
         <td>
@@ -1870,9 +1873,10 @@ function renderBenchmarkResults(data) {
           </div>
         </td>
         <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);">${r.time_sec}s</td>
-        <td>
+        <td style="white-space:nowrap;">
           ${isBest    ? '<span class="bm-badge best">⭐ Best</span>' : ''}
           ${isFastest ? '<span class="bm-badge fast">⚡ Fast</span>' : ''}
+          <div style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:3px;">Acc: ${r.top1 || '—'}</div>
         </td>
       </tr>`;
     } else {
